@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 import './style.css';
 
@@ -7,91 +7,78 @@ import { loadingPosts } from '../../utils/load-posts';
 import { Button } from '../../components/Button';
 import { TextInput } from '../../components/TextInput';
 
-export class Home extends Component {
-  state = {
-    posts: [],
-    allPosts: [],
-    page: 0,
-    postPerPage: 10,
-    searchValue: ''
-  };
+export const Home = () => {
+
+  const [posts, setPosts] = useState([]);
+  const [allPosts, setAllPosts] = useState([]);
+  const [page, setPage] = useState(0);
+  const [postsPerPage] = useState(10);
+  const [searchValue, setSearchValue] = useState('');
 
 
-  
-  async componentDidMount() {
-    await this.loadPosts();
-  }
+  const noMorePosts = page + postsPerPage >= allPosts.length;
 
-  loadPosts = async() => {
-    const {page, postPerPage} = this.state;
-    const postsAndPhotos = await loadingPosts();
-    this.setState({
-      posts: postsAndPhotos.slice(page,postPerPage),
-      allPosts: postsAndPhotos,
-    });
-  }
+  const filteredPosts = !!searchValue ? 
+  allPosts.filter(post => {
+    return post.title.toLowerCase().includes(
+      searchValue.toLowerCase()
+    );
+  })
+  : posts;
 
-  loadMorePosts = () => {
-    const {
-      page,
-      postPerPage,
-      allPosts,
-      posts
-    } = this.state;
-    const nextPage = page + postPerPage;
-    const nextPosts = allPosts.slice(nextPage, nextPage + postPerPage);
+    const loadMorePosts = () => {
+    const nextPage = page + postsPerPage;
+    const nextPosts = allPosts.slice(nextPage, nextPage + postsPerPage);
     posts.push(...nextPosts);
 
-    this.setState({posts, page: nextPage});
-    console.log(page, postPerPage, nextPage, nextPage + postPerPage)
+    setPosts(posts);
+    setPage(nextPage);
+
+    console.log(page, postsPerPage, nextPage, nextPage + postsPerPage)
   }
 
-  handleChange = (e) => {
+  const handleChange = (e) => {
     const { value } = e.target;
-    this.setState({searchValue: value});
+    setSearchValue(value)
 
   }
-  
-  render() {
-    const { posts, page, postPerPage, allPosts, searchValue }  = this.state;
-    const noMorePosts = page + postPerPage >= allPosts.length;
+  const loadPosts = useCallback(async(page, postsPerPage) => {
+    const postsAndPhotos = await loadingPosts();
 
-    const filteredPosts = !!searchValue ? 
-    allPosts.filter(post => {
-      return post.title.toLowerCase().includes(
-        searchValue.toLowerCase()
-      );
-    })
-    : posts;
+    setPosts(postsAndPhotos.slice(page,postsPerPage))
+    setAllPosts(postsAndPhotos)
+  },[])
 
-    return (
-      <section className="container">
-        <div className="search-container">
-          {!!searchValue && (
-            <h1>Search value: {searchValue}</h1>
-          )}
-          <TextInput 
-            inputValue={searchValue}
-            actionFn={this.handleChange}
-          />
-        </div>
-        {filteredPosts.length > 0 ? (
-          <Posts posts={filteredPosts} />
-        ) : (
-          <p>Não existe posts</p>
+  useEffect(() => {
+    loadPosts(0, postsPerPage);
+  },[loadPosts, postsPerPage]);
+
+  return (
+    <section className="container">
+      <div className="search-container">
+        {!!searchValue && (
+          <h1>Search value: {searchValue}</h1>
         )}
-        <div className="button-container">
-          {!searchValue && (
-            <Button 
-              text="Load more posts"
-              onClick={this.loadMorePosts}
-              disabled={noMorePosts}
-            />
+        <TextInput 
+          inputValue={searchValue}
+          actionFn={handleChange}
+        />
+      </div>
+      {filteredPosts.length > 0 ? (
+        <Posts posts={filteredPosts} />
+      ) : (
+        <p>Não existe posts</p>
+      )}
+      <div className="button-container">
+        {!searchValue && (
+          <Button 
+            text="Load more posts"
+            onClick={loadMorePosts}
+            disabled={noMorePosts}
+          />
 
-          )}
-        </div>
-      </section>
-    );
-  }
+        )}
+      </div>
+    </section>
+  );
 }
-
